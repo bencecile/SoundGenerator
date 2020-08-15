@@ -13,7 +13,6 @@ pub struct Song {
     musicians: Vec<Musician>,
     /// Use the beat number to specify when a new timing will start
     timings: Vec<(Beat, Timing)>,
-    // TODO We will want to have characteristics of the note (strong attack, weak decay, etc.)
 }
 impl Song {
     pub fn new(starting_timing: Timing) -> Song {
@@ -25,7 +24,16 @@ impl Song {
         }
     }
 
-    pub fn add_musician(&mut self, musician: Musician) { self.musicians.push(musician); }
+    pub fn add_musician(&mut self, mut musician: Musician) {
+        let new_length = self.musicians.len() + 1;
+        let sound_level = 1.0 / (new_length as f32);
+        // TODO Be smarter to not just overwrite the sound level
+        for musician in &mut self.musicians {
+            musician.sound_levels[0].1 = sound_level;
+        }
+        musician.sound_levels.push( (crate::FIRST_BEAT, sound_level) );
+        self.musicians.push(musician);
+    }
     // pub fn get_musician(&mut self, index: usize) -> &mut Musician { &mut self.musicians[index] }
 
     pub fn export_to_wav(&mut self, file_path: impl AsRef<Path>) -> Result<(), String> {
@@ -101,6 +109,8 @@ impl Song {
 pub struct Musician {
     instrument: Box<dyn Instrument>,
     notes: Vec<Note>,
+    sound_levels: Vec<(Beat, f32)>,
+    // TODO We will want to have characteristics of the note (strong attack, weak decay, etc.)
     // TODO We will probably want to be able to name a musician for the UI
 }
 impl Musician {
@@ -108,6 +118,7 @@ impl Musician {
         Musician {
             instrument: Box::new(instrument),
             notes: Vec::new(),
+            sound_levels: Vec::new(),
         }
     }
 
@@ -150,8 +161,21 @@ impl Musician {
             if note.start_beat >= cutoff_beat {
                 break;
             }
+            let sound_level = match self.sound_levels.binary_search_by_key(
+                &note.start_beat, |(beat, _)| *beat) {
+                Ok(index) => self.sound_levels[index].1,
+                Err(index) => {
+                    if index >= self.sound_levels.len() ||
+                        self.sound_levels[index].0 > note.start_beat {
+                        // Default to the previous one since we can't find a good sound level
+                        self.sound_levels[index - 1].1
+                    } else {
+                        self.sound_levels[index].1
+                    }
+                },
+            };
             let mixer_samples = mixer.samples_for_beats(
-                note.start_beat, note.beat_length
+                note.start_beat, note.beat_length, sound_level
             );
             self.instrument.sample_note(note, mixer_samples);
         }
@@ -210,15 +234,10 @@ impl Timing {
 /// Each note will go through 3 phases, in order: attack, sustain, decay.
 #[derive(Clone, Debug)]
 pub struct Note {
-    pub name: NoteName,
+    pub note_type: NoteType,
     pub start_beat: Beat,
     /// Specify how long this note is held in beats (ie. 1 is a quarter note)
     pub beat_length: Beat,
-}
-impl Note {
-    pub fn new(name: NoteName, start_beat: Beat, beat_length: Beat) -> Note {
-        Note { name, start_beat, beat_length }
-    }
 }
 impl Note {
     fn note_collision_msg(&self) -> String { format!("Note collision with {:?}", self) }
@@ -234,7 +253,16 @@ impl PartialOrd for Note {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
-// TODO We will need to have different note types. Single, chord, rest
+#[derive(Clone, Debug)]
+pub enum NoteType {
+    Single(NoteName),
+    Chord2(NoteName, NoteName),
+    Chord3(NoteName, NoteName, NoteName),
+    Chord4(NoteName, NoteName, NoteName, NoteName),
+    Chord5(NoteName, NoteName, NoteName, NoteName, NoteName),
+    Percussion,
+    Rest,
+}
 
 /// The parameter is the octave on which this note is placed.
 #[derive(Copy, Clone, Debug)]

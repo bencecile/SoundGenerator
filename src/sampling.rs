@@ -47,7 +47,8 @@ impl Mixer {
     pub fn properties(&self) -> &SamplingProperties { &self.properties }
     pub fn iter_samples(&self) -> impl Iterator<Item = &Sample> { self.samples.iter() }
 
-    pub fn samples_for_beats(&mut self, start_beat: Beat, beat_length: Beat) -> MixerSamples {
+    pub fn samples_for_beats(&mut self, start_beat: Beat, beat_length: Beat,
+        sound_level: f32) -> MixerSamples {
         let seconds_at_start = crate::beat_in_seconds(&start_beat, self.properties.bpm);
         let cutoff_beat =  start_beat + beat_length;
         let start_index = {
@@ -61,7 +62,7 @@ impl Mixer {
         };
         MixerSamples {
             samples: &mut self.samples[start_index .. end_index],
-            sound_level: 1.0 / 3.0,
+            sound_level,
             sample_rate: self.properties.sample_rate,
         }
     }
@@ -75,7 +76,8 @@ pub struct MixerSamples<'a> {
 impl <'a> MixerSamples<'a> {
     pub fn total_samples(&self) -> usize { self.samples.len() }
 
-    pub fn mix_sample(&mut self, index: usize, sample: Sample) {
-        self.samples[index] += (sample as f32 * self.sound_level) as Sample;
+    pub fn mix_sample(&mut self, index: usize, sample: f32) {
+        let sample = Sample::max_value() as f32 * sample * self.sound_level;
+        self.samples[index] += sample as Sample;
     }
 }
