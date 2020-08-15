@@ -153,28 +153,6 @@ fn main() -> Result<(), String> {
 
     let mut triangle_musician = Musician::new(TriangleWave::new());
     triangle_musician.add_note(Note {
-        note_type: NoteType::Single(NoteName::F(3)),
-        start_beat: Beat::new(0, 1),
-        beat_length: Beat::new(4, 1),
-    })?;
-    song.add_musician(triangle_musician);
-    let mut triangle_musician = Musician::new(TriangleWave::new());
-    triangle_musician.add_note(Note {
-        note_type: NoteType::Single(NoteName::A(3)),
-        start_beat: Beat::new(0, 1),
-        beat_length: Beat::new(4, 1),
-    })?;
-    song.add_musician(triangle_musician);
-    let mut triangle_musician = Musician::new(TriangleWave::new());
-    triangle_musician.add_note(Note {
-        note_type: NoteType::Single(NoteName::C(3)),
-        start_beat: Beat::new(0, 1),
-        beat_length: Beat::new(4, 1),
-    })?;
-    song.add_musician(triangle_musician);
-
-    let mut triangle_musician = Musician::new(TriangleWave::new());
-    triangle_musician.add_note(Note {
         note_type: NoteType::Chord3(NoteName::F(3), NoteName::A(3), NoteName::C(4)),
         start_beat: Beat::new(0, 1),
         beat_length: Beat::new(4, 1),
